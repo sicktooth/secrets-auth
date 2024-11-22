@@ -51,7 +51,6 @@ app.post("/login", async (req, res)=>{
         const foundUser = await User.findOne({email: userName});
         if(foundUser){
             if(foundUser.password === password){
-                
                 res.render('secrets')
             }
         } else {
