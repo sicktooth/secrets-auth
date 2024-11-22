@@ -5,6 +5,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.set('view engine', 'ejs');
 const {connectDB, User} = require('./config/database')
+var md5 = require('md5');
 
 connectDB();
 app.get('/', (req, res)=>{
@@ -23,7 +24,7 @@ app.post('/register', async (req, res)=> {
     try {
         const newUser = await User.create({
                 email: req.body.username,
-                password: req.body.password
+                password: md5(req.body.password)
         });
         if (newUser){
             console.log("Successfully add new user");
@@ -45,11 +46,12 @@ app.post('/register', async (req, res)=> {
 
 app.post("/login", async (req, res)=>{
     const userName = req.body.username,
-    password = req.body.password;
+    password = md5(req.body.password);
     try {
         const foundUser = await User.findOne({email: userName});
         if(foundUser){
             if(foundUser.password === password){
+                
                 res.render('secrets')
             }
         } else {
