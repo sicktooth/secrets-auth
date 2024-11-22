@@ -21,19 +21,23 @@ app.get('/register', (req, res)=>{
 })
 
 app.post('/register', async (req, res)=> {
+    const userName = req.body.username,
+    password = req.body.password
     try {
-        const newUser = await User.create({
-                email: req.body.username,
-                password: md5(req.body.password)
-        });
-        if (newUser){
-            console.log("Successfully add new user");
-            res.render('secrets')
-        } else {
-            res.status(401).send({
-                message: "unauthorized"
+        const checkUser = await User.findOne({email: userName});
+        if (!checkUser) {
+            const newUser = await User.create({
+                email: userName,
+                password: md5(password)
             });
+            if (newUser){
+                console.log("Successfully add new user");
+                res.render('secrets')
+            } 
+        } else {
+            res.send({message: "This email has been used"});
         }
+        
     } catch (error) {
         console.error(error);
         res.status(500).send({
