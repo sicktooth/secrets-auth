@@ -5,7 +5,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.set('view engine', 'ejs');
 const {connectDB, User} = require('./config/database')
-var md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 connectDB();
 app.get('/', (req, res)=>{
@@ -23,12 +24,13 @@ app.get('/register', (req, res)=>{
 app.post('/register', async (req, res)=> {
     const userName = req.body.username,
     password = req.body.password
+    const hash = bcrypt.hashSync(password, saltRounds);
     try {
         const checkUser = await User.findOne({email: userName});
         if (!checkUser) {
             const newUser = await User.create({
                 email: userName,
-                password: md5(password)
+                password: hash
             });
             if (newUser){
                 console.log("Successfully add new user");
@@ -50,12 +52,17 @@ app.post('/register', async (req, res)=> {
 
 app.post("/login", async (req, res)=>{
     const userName = req.body.username,
-    password = md5(req.body.password);
+    password = req.body.password;
+    
     try {
         const foundUser = await User.findOne({email: userName});
         if(foundUser){
-            if(foundUser.password === password){
+            if(bcrypt.compareSync(password, foundUser.password)){
                 res.render('secrets')
+            } else {
+                res.send({
+                    message: 'incorrect password'
+                });
             }
         } else {
             res.status(404).send({
