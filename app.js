@@ -1,7 +1,10 @@
+require('dotenv').config();
 const express = require("express");
 const session = require('express-session');
 const passport = require('passport');
 const { connectDB, User } = require('./config/database');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+
 
 const app = express();
 const PORT = 3000;
@@ -30,11 +33,62 @@ connectDB().then(() => console.log("Connected to MongoDB")).catch(console.error)
 
 // Passport Configuration
 passport.use(User.createStrategy());
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+
+// the next two lines are for local storage alone.
+// passport.serializeUser(User.serializeUser());
+// passport.deserializeUser(User.deserializeUser());
+// the next are for mongodb storage and retrieval
+
+// Serialize user
+passport.serializeUser(function(user, done) {
+    done(null, user.id); // Store only the user ID
+  });
+  
+  // Deserialize user
+  passport.deserializeUser(async function(id, done) {
+    try {
+      const user = await User.findById(id); // Fetch user from DB
+      if (!user) {
+        return done(new Error("User not found"));
+      }
+      done(null, user); // Attach full user object to req.user
+    } catch (err) {
+      done(err, null); // Handle errors gracefully
+    }
+  });
+  
+
+// Passport Google auth
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: "http://localhost:3000/auth/google/secrets",
+    scope: ['profile', 'email'],
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      // Check if user already exists
+      let user = await User.findOne({ googleId: profile.id });
+      
+      if (!user) {
+        // Create a new user if one does not exist
+        user = await User.create({
+          googleId: profile.id,
+        });
+      }
+
+      return done(null, user);
+    } catch (error) {
+      return done(error); // Pass error to Passport
+    }
+  }
+));
+
 
 // Routes
 app.get('/', (req, res) => res.render('home'));
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/login', (req, res) => res.render('login'));
 app.get('/register', (req, res) => res.render('register'));
 app.get('/logout', (req, res)=>
@@ -42,6 +96,14 @@ app.get('/logout', (req, res)=>
         if (err) { return next(err); }
         res.redirect('/');
       })) // this required a callback function compared to the course
+
+// after been authenticated by google
+app.get('/auth/google/secrets', 
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    function(req, res) {
+      // Successful authentication, redirect to protected route.
+      res.redirect('/secrets');
+});
 
 // Protected route
 app.get('/secrets', (req, res) => {
@@ -51,6 +113,7 @@ app.get('/secrets', (req, res) => {
         res.redirect('/login');
     }
 });
+
 
 // Register user
 app.post('/register', (req, res) => {
