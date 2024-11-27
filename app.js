@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require("express");
 const session = require('express-session');
 const passport = require('passport');
+const routes = require('./routes/routes');
 const { connectDB, User } = require('./config/database');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
@@ -37,7 +38,7 @@ passport.use(User.createStrategy());
 // the next two lines are for local storage alone.
 // passport.serializeUser(User.serializeUser());
 // passport.deserializeUser(User.deserializeUser());
-// the next are for mongodb storage and retrieval
+// the next are for mongodb storage and retrieval plus local storage
 
 // Serialize user
 passport.serializeUser(function(user, done) {
@@ -86,33 +87,9 @@ passport.use(new GoogleStrategy({
 ));
 
 
-// Routes
-app.get('/', (req, res) => res.render('home'));
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-app.get('/login', (req, res) => res.render('login'));
-app.get('/register', (req, res) => res.render('register'));
-app.get('/logout', (req, res)=>
-    req.logout(function(err) {
-        if (err) { return next(err); }
-        res.redirect('/');
-      })) // this required a callback function compared to the course
+// routes
 
-// after been authenticated by google
-app.get('/auth/google/secrets', 
-    passport.authenticate('google', { failureRedirect: '/login' }),
-    function(req, res) {
-      // Successful authentication, redirect to protected route.
-      res.redirect('/secrets');
-});
-
-// Protected route
-app.get('/secrets', (req, res) => {
-    if (req.isAuthenticated()) { //isAunthenticated is a function compared to the course
-        res.render('secrets');
-    } else {
-        res.redirect('/login');
-    }
-});
+app.use('/', routes);
 
 
 // Register user
